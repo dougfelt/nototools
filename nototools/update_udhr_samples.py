@@ -24,17 +24,17 @@ import codecs
 import collections
 import datetime
 import difflib
-import generate_website_data
 import os
 import re
 import shutil
-import unicode_data
 import urllib
 import xml.etree.ElementTree as ET
 import zipfile
 
+import cldr_data
 import notoconfig
 import tool_utils
+import unicode_data
 
 DIR_URL = 'http://unicode.org/udhr/d'
 UDHR_XML_ZIP_NAME = 'udhr_xml.zip'
@@ -175,20 +175,20 @@ def add_likely_scripts(bcp_to_code):
     if code in CODE_TO_BCP:
       new_bcp = CODE_TO_BCP[code]
     else:
-      new_bcp = bcp
-      parts = bcp.split('-')
-      try:
-        script = generate_website_data.find_likely_script(parts[0])
-        if len(parts) == 1:
-          new_bcp = '%s-%s' % (bcp, script)
-        elif len(parts[1]) != 4 or parts[1].isdigit():
-          # assume a region or variant.  Some 4-char values are years, e.g. '1996'
-          new_bcp = '%s-%s-%s' % (parts[0], script, '-'.join(parts[1:]))
-        # otherwise, we assume the 4-char value is a script, and leave it alone.
-      except KeyError:
-        # if we can't provide a script, it's no use for a script sample, so exclude it
-        print 'no likely subtag (script) data for %s, excluding' % parts[0]
+      lang, script, region = cldr_data.get_likely_subtags(bcp)
+      if script == 'Zzzz':
+        print 'no likely subtag (script) data for %s, excluding' % bcp
         continue
+      parts = bcp.split('-')
+      if len(parts) == 1 or (len(parts[1]) == 4 and not parts[1].isdigit()):
+        new_bcp = '%s-%s' % (lang, script)
+      else:
+        # Assume a second part is region or variant.
+        # Some 4-char values are years, e.g. '1996'
+        new_bcp = '%s-%s-%s' % (lang, script, '-'.join(parts[1:]))
+
+    if new_bcp != bcp:
+      print 'bcp change from add_likely_script: "%s" -> "%s"' % (bcp, new_bcp)
     result[new_bcp] = code
   return result
 
@@ -200,11 +200,13 @@ def add_likely_scripts(bcp_to_code):
 EXCLUDE_BCP = frozenset([
   'fa-Arab', 'ar-Arab', 'th-Thai'])
 
-# The data for these is bad.  The kwi.xml has no article 1 text (only '[?]')
-# and the cbi.xml article 1 text has '. mitya, tsenr)1in ' in it, which just looks
+# The data for these is bad.
+# kwi.xml has no article 1 text (only '[?]')
+# cbi.xml article 1 text has '. mitya, tsenr)1in ' in it, which just looks
 # broken.
+# swb.xml is in the Latin script, but unicode likely subtag data says Arabic.
 EXCLUDE_CODES = frozenset([
-  'kwi', 'cbi'])
+  'kwi', 'cbi', 'swb'])
 
 def filter_bcp_to_code(bcp_to_code):
   """Exclude entries for samples improved in noto/sample_texts and for bad samples."""

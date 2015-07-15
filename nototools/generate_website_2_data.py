@@ -539,8 +539,8 @@ def get_charset_info(charset):
   return ','.join(range_list)
 
 
-def get_sample_from_sample_file(lang_scr):
-  filepath = path.join(SAMPLE_TEXT_DIR, lang_scr + '.txt')
+def get_sample_from_sample_file(lang_scr, suffix):
+  filepath = path.join(SAMPLE_TEXT_DIR, '%s_%s.txt' % (lang_scr, suffix))
   if path.exists(filepath):
     return unicode(open(filepath).read().strip(), 'UTF-8')
   return None
@@ -584,10 +584,15 @@ def get_sample_and_attrib(lang_scr):
     original: public domain translation, does not need attribution
     none: we have no attribution info on this, does not need attribution
   - source key"""
-  assert '-' in lang_scr
-  DEBUG = lang_scr.startswith('tab-')
+  if '-' not in lang_scr:
+    print 'bad lang_scr in get_sample_and_attrib: "%s"' % lang_scr
+    raise ValueError(lang_scr)
 
-  sample_text = get_sample_from_sample_file(lang_scr)
+  DEBUG = lang_scr.find('Zzzz') != -1
+  if DEBUG:
+    'print ouch: ' + lang_scr
+
+  sample_text = get_sample_from_sample_file(lang_scr, 'udhr')
   if sample_text is not None:
     attr = get_attribution(lang_scr)
     src_key = 'txt-' + lang_scr
@@ -599,7 +604,7 @@ def get_sample_and_attrib(lang_scr):
 
   _, script = lang_scr.split('-')
   src_key = 'und-' + script
-  sample_text = get_sample_from_sample_file(src_key)
+  sample_text = get_sample_from_sample_file(src_key, 'chars')
   if sample_text is not None:
     return sample_text, 'none', src_key
 
@@ -609,14 +614,11 @@ def get_sample_and_attrib(lang_scr):
 
 def ensure_script(lang_tag):
   """If lang_tag has no script, use get_likely_script to add one.
-  If that fails, return an empty tag."""
+  This might be the unknown script 'Zzzz'."""
   if '-' in lang_tag:
     return lang_tag
-  try:
-    script = cldr_data.get_likely_script(lang_tag)
-  except KeyError:
-    print 'no likely script for lang %s' % lang_tag
-    return ''
+
+  script = cldr_data.get_likely_script(lang_tag)
   return lang_tag + '-' + script
 
 
@@ -1103,7 +1105,7 @@ class WebGen(object):
     # debug/print
     # ['families', 'script_to_family_ids', 'used_lang_data',
     #  'family_id_to_lang_tags', 'family_id_to_default_lang_tag']
-    debug = frozenset([])
+    debug = frozenset(['used_lang_data'])
 
     fonts = get_noto_fonts()
     families = get_families(fonts)
@@ -1123,7 +1125,7 @@ class WebGen(object):
     used_lang_data = get_used_lang_data(supported_scripts)
     if 'used_lang_data' in debug:
       print '\nused lang data'
-      for lang, data in sorted(used_lang_data.iteritems()):
+      for lang, data in sorted(used_lang_data.iteritems()):<
         used = ', '.join(data[0])
         unused = ', '.join(data[1])
         if unused:
@@ -1131,6 +1133,8 @@ class WebGen(object):
           if used:
             unused = ' ' + unused
         print '%s: %s%s' % (lang, used, unused)
+    #debug
+    return
 
     langs_to_delete = []
     for lang in used_lang_data.keys():

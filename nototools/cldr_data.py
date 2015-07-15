@@ -42,9 +42,11 @@ def _parse_likely_subtags():
     from_tag = tag.get('from').replace('_', '-')
     to_tag = tag.get('to').split('_')
     _LIKELY_SUBTAGS[from_tag] = to_tag
-    # print 'likely subtag from %s -> %s' % (from_tag, to_tag)
 
   _LIKELY_SUBTAGS.update(extra_locale_data.LIKELY_SUBTAGS)
+
+  # for from_tag, to_tag in sorted(_LIKELY_SUBTAGS.iteritems()):
+  #   print 'likely subtag from %s -> %s' % (from_tag, to_tag)
 
 
 # from language elements
