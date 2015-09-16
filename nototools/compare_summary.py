@@ -23,8 +23,9 @@ import filecmp
 import os
 import os.path
 
-import summary
-import noto_lint
+from nototools import noto_lint
+from nototools import summary
+from nototools import tool_utils
 
 def summary_to_map(summary_list):
   result = {}
@@ -58,7 +59,7 @@ def print_keys(key_list):
 
 def compare_table_info(base_info, target_info):
   biggest_deltas = []
-  other_count = 0
+  others = [] # checksum changes
   added = []
   removed = []
 
@@ -66,14 +67,14 @@ def compare_table_info(base_info, target_info):
     b_tup = base_info.get(k)
     t_tup = target_info.get(k)
     if not b_tup:
-      added.append(t_tup)
+      added.append((k, t_tup[0]))
     else:
       b_len = b_tup[0]
       t_len = t_tup[0]
       delta = t_len - b_len
       if delta == 0:
         if b_tup[1] != t_tup[1]:
-          other_count += 1
+          others.append(k)
         continue
       biggest_deltas.append((k, delta))
 
@@ -92,9 +93,13 @@ def compare_table_info(base_info, target_info):
         return t[0]
       return '%s(%+d)' % t
     biggest_delta_strings = [print_delta(t) for t in biggest_deltas]
-    if other_count > 0 and len(biggest_deltas) < 5:
+    # if a table changed size, the head table will change the checksum, don't
+    # report this.
+    others = [k for k in others if k != 'head']
+    if len(others) > 0 and len(biggest_deltas) < 5:
+      other_count = len(others)
       biggest_delta_strings.append('%s other%s' %
-        (other_count, 's' if other_count != 1 else ''))
+                                   (other_count, 's' if other_count != 1 else ''))
     result.append('changed ' + ', '.join(biggest_delta_strings))
   if added:
     result.append('added ' + ', '.join('%s(%s)' % t for t in sorted(added)))
@@ -214,8 +219,10 @@ def compare_summary(base_root, target_root, name=None, comparefn=tuple_compare,
 
 def main():
   parser = argparse.ArgumentParser()
-  parser.add_argument('base_root', help='root of directory tree, base for comparison')
-  parser.add_argument('target_root', help='root of directory tree, target for comparison')
+  parser.add_argument('-b', '--base_root', help='root of directory tree, base for comparison '
+                      '(default [fonts])', metavar='dir', default='[fonts]')
+  parser.add_argument('-t', '--target_root', help='root of directory tree, target for comparison',
+                      metavar='dir', required=True)
   parser.add_argument('--name', help='only examine files whose subpath+names contain this regex')
   parser.add_argument('--compare_size', help='include size in comparisons',
                       action='store_true')
@@ -227,6 +234,9 @@ def main():
                       default=True, dest='show_paths')
   args = parser.parse_args()
 
+  args.base_root = tool_utils.resolve_path(args.base_root)
+  args.target_root = tool_utils.resolve_path(args.target_root)
+
   if not os.path.isdir(args.base_root):
     print 'base_root %s does not exist or is not a directory' % args.base_root
     return
@@ -235,13 +245,10 @@ def main():
     print 'target_root %s does not exist or is not a directory' % args.target_root
     return
 
-  base_root = os.path.abspath(args.base_root)
-  target_root = os.path.abspath(args.target_root)
-
   comparefn = tuple_compare if args.compare_size else tuple_compare_no_size
 
-  compare_summary(base_root, target_root, args.name, comparefn, args.added, args.removed,
-                  args.identical, args.show_paths)
+  compare_summary(args.base_root, args.target_root, args.name, comparefn,
+                  args.added, args.removed, args.identical, args.show_paths)
 
 if __name__ == '__main__':
   main()

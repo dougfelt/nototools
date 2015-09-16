@@ -26,6 +26,10 @@ from nototools import extra_locale_data
 TOOLS_DIR = path.abspath(path.join(path.dirname(__file__), os.pardir))
 CLDR_DIR = path.join(TOOLS_DIR, 'third_party', 'cldr')
 
+# control print of debug/trace info when we synthesize the data
+
+_DEBUG = False
+
 # Maps from a less-specific tag to tuple of lang, script, region
 # Keys either have a lang or 'und'.  If lang, then script or region.  If und,
 # then either script or region or both.
@@ -99,6 +103,9 @@ def _parse_supplemental_data():
 #     if 'officialStatus' not in child.attrib:
 #       continue  # Skip non-official languages
       lang = child.get('type')
+      if lang == 'und':
+        # no point, this data is typically uninhabited small islands and Antarctica
+        continue
       ix = lang.find('_')
       if ix == -1:
         key = lang + '-' + territory
@@ -123,8 +130,14 @@ def _parse_supplemental_data():
     if und_scr in _LIKELY_SUBTAGS:
       lang = _LIKELY_SUBTAGS[und_scr][0]
       if lang != 'und' and script not in _LANG_TO_SCRIPTS[lang]:
-        print 'lang to scripts missing script %s for %s' % (script, lang)
+        if _DEBUG:
+          print 'lang to scripts missing script %s for %s (from %s)' % (
+              script, lang, ', '.join(_LANG_TO_SCRIPTS[lang]))
         _LANG_TO_SCRIPTS[lang].add(script)
+
+  # Supplement lang to script mapping with extra locale data
+  for lang, scripts in extra_locale_data.LANG_TO_SCRIPTS.iteritems():
+    _LANG_TO_SCRIPTS[lang] |= set(scripts)
 
   # Use extra locale data's likely subtag info to change the supplemental
   # data we got from the language and territory elements.
@@ -136,20 +149,26 @@ def _parse_supplemental_data():
     region = tags[2]
     lang_scripts = _LANG_TO_SCRIPTS[lang]
     if script not in lang_scripts:
-      print 'extra likely subtags lang %s has script %s but supplemental only has [%s]' % (
-          lang, script, ', '.join(sorted(lang_scripts)))
+      if _DEBUG:
+        print 'extra likely subtags lang %s has script %s but supplemental only has [%s]' % (
+            lang, script, ', '.join(sorted(lang_scripts)))
       if len(lang_scripts) == 1:
         replacement = set([script])
-        print 'replacing %s with %s' % (lang_scripts, replacement)
+        if _DEBUG:
+          print 'replacing %s with %s' % (lang_scripts, replacement)
         _LANG_TO_SCRIPTS[lang] = replacement
       else:
         _LANG_TO_SCRIPTS[lang].add(script)
     lang_script = lang + '-' + script
     # skip ZZ region
     if region != 'ZZ' and lang_script not in _REGION_TO_LANG_SCRIPTS[region]:
-      print 'extra lang_script %s not in cldr for %s, adding' % (
-          lang_script, region)
+      if _DEBUG:
+        print 'extra lang_script %s not in cldr for %s, adding' % (
+            lang_script, region)
       _REGION_TO_LANG_SCRIPTS[region].add(lang_script)
+
+  for territory, lang_scripts in extra_locale_data.REGION_TO_LANG_SCRIPTS.iteritems():
+    _REGION_TO_LANG_SCRIPTS[territory] |= set(lang_scripts)
 
   for tag in root.iter('parentLocale'):
     parent = tag.get('parent')
@@ -178,6 +197,7 @@ def lang_to_regions(lang):
     return _LANG_TO_REGIONS[lang]
   except:
     return None
+
 
 def lang_to_scripts(lang):
   _parse_supplemental_data()
@@ -216,8 +236,10 @@ def get_likely_subtags(lang_tag):
         # stop default to 'en' for unknown scripts
         break
 
-  print 'no likely subtag for %s' % lang_tag
-  return ('und', 'Zzzz', 'ZZ')
+  if _DEBUG:
+    print 'no likely subtag for %s' % lang_tag
+  tags = lang_tag.split('-')
+  return (tags[0], tags[1] if len(tags) > 1 else 'Zzzz', tags[2] if len(tags) > 2 else 'ZZ')
 
 
 _SCRIPT_METADATA = {}
@@ -236,7 +258,8 @@ def is_script_rtl(script):
   try:
     return _SCRIPT_METADATA[script][5] == 'YES'
   except KeyError:
-    print 'No script metadata for %s' % script
+    if _DEBUG:
+      print 'No script metadata for %s' % script
     return False
 
 
@@ -271,7 +294,7 @@ def _get_language_name_from_file(language, cldr_file_path):
   for tag in parent:
     assert tag.tag == 'language'
     if tag.get('type').replace('_', '-') == language:
-      _LANGUAGE_NAME_FROM_FILE_CACHE[cache_key] = tag.text
+      _LANGUAGE_NAME_FROM_FILE_CACHE[cache_key] = unicode(tag.text)
       return _LANGUAGE_NAME_FROM_FILE_CACHE[cache_key]
   return None
 
@@ -289,17 +312,25 @@ def parent_locale(locale):
   return 'root'
 
 
-def get_native_language_name(lang_scr):
+def get_native_language_name(lang_scr, exclude_script=False):
     """Get the name of a language/script in its own locale."""
-    try:
-      return extra_locale_data.NATIVE_NAMES[lang_scr]
-    except KeyError:
-      pass
 
     if '-' in lang_scr:
-      langs = [lang_scr, lang_scr.split('-')[0]]
+      lang = lang_scr.split('-')[0]
     else:
-      langs = [lang_scr]
+      lang = lang_scr
+      lang_scr = None
+
+    if exclude_script or not lang_scr:
+      langs = [lang]
+    else:
+      langs = [lang_scr, lang]  # lang_scr first since we want to try that first
+
+    for lang in langs:
+      try:
+        return extra_locale_data.NATIVE_NAMES[lang]
+      except KeyError:
+        pass
 
     locale = lang_scr
     while locale != 'root':
@@ -321,7 +352,7 @@ def _xml_to_dict(element):
       continue
     key = child.get('type')
     key = key.replace('_', '-')
-    result[key] = child.text
+    result[key] = unicode(child.text)
   return result
 
 
@@ -341,11 +372,10 @@ def _parse_english_labels():
 
   _ENGLISH_LANGUAGE_NAMES = _xml_to_dict(ldn.find('languages'))
   _ENGLISH_SCRIPT_NAMES = _xml_to_dict(ldn.find('scripts'))
-  # Shorten name of Cans for display purposes-- match the name of the font used for Cans.
-  _ENGLISH_SCRIPT_NAMES['Cans'] = 'Canadian Aboriginal'
   _ENGLISH_TERRITORY_NAMES = _xml_to_dict(ldn.find('territories'))
 
   # Add languages used that miss names
+  _ENGLISH_SCRIPT_NAMES.update(extra_locale_data.ENGLISH_SCRIPT_NAMES)
   _ENGLISH_LANGUAGE_NAMES.update(extra_locale_data.ENGLISH_LANGUAGE_NAMES)
 
 
@@ -361,6 +391,7 @@ def get_english_script_name(script):
 def get_english_language_name(lang_scr):
   """Get the name of a language/script in the en-US locale."""
   _parse_english_labels()
+
   try:
     return _ENGLISH_LANGUAGE_NAMES[lang_scr]
   except KeyError:
@@ -372,7 +403,8 @@ def get_english_language_name(lang_scr):
         return name
       except KeyError:
         pass
-  print 'No English name for \'%s\'' % lang_scr
+  if _DEBUG:
+    print 'No English name for \'%s\'' % lang_scr
   return None
 
 
@@ -381,7 +413,8 @@ def get_english_region_name(region):
   try:
     return _ENGLISH_TERRITORY_NAMES[region]
   except KeyError:
-    print 'No English name for region %s' % region
+    if _DEBUG:
+      print 'No English name for region %s' % region
     return ''
 
 
@@ -502,16 +535,16 @@ def get_exemplar_and_source(loc_tag):
   # don't use exemplars encoded without script if the requested script is not
   # the default
   m = LSRV_RE.match(loc_tag)
-  script = m.group(1) if m else None
+  script = m.group(2) if m else None
   while loc_tag != 'root':
     for directory in ['common', 'seed', 'exemplars']:
       exemplar = get_exemplar_from_file(
         path.join(directory, 'main', loc_tag.replace('-', '_') + '.xml'))
       if exemplar:
-        return exemplar, directory + '-' + loc_tag
+        return exemplar, loc_tag + '_ex_' + directory
     exemplar = get_exemplar_from_extra_data(loc_tag)
     if exemplar:
-      return exemplar, 'extra-' + loc_tag
+      return exemplar, loc_tag + '_ex_extra'
     loc_tag = parent_locale(loc_tag)
     if loc_tag == 'root' or (script and get_likely_subtags(loc_tag)[1] != script):
       break
@@ -523,7 +556,8 @@ def loc_tag_to_lsrv(loc_tag):
   Supplies likely script if missing."""
   m = LSRV_RE.match(loc_tag)
   if not m:
-    print 'regex did not match locale \'%s\'' % loc_tag
+    if _DEBUG:
+      print 'regex did not match locale \'%s\'' % loc_tag
     return None
   lang = m.group(1)
   script = m.group(2)

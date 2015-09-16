@@ -40,24 +40,31 @@ def temp_chdir(path):
     os.chdir(saved_dir)
 
 
-noto_re = re.compile(r'\[(tools|fonts|emoji|cjk)\]/(.*)')
-def resolve_path(path):
-  """Resolve a path that might use noto path shorthand."""
+noto_re = re.compile(r'\[(tools|fonts|emoji|cjk|adobe|mti)\](.*)')
+def resolve_path(somepath):
+  """Resolve a path that might start with noto path shorthand. If
+  the path is empty, is '-', or the shorthand is not defined,
+  returns None. Example: '[fonts]/hinted'."""
 
-  if not path or path == '-':
+  if not somepath or somepath == '-':
     return None
-  m = noto_re.match(path)
+  m = noto_re.match(somepath)
   if m:
     base, rest = m.groups()
-    key = 'noto_' + base
+    if base == 'adobe':
+      key = 'adobe_data'
+    elif base == 'mti':
+      key = 'monotype_data'
+    else:
+      key = 'noto_' + base
     if not key in notoconfig.values:
-      raise ValueError('notoconfig has no entry for %s' % key)
+      print 'notoconfig has no entry for %s' % key
+      return None
     base = notoconfig.values.get(key)
-    path = os.path.join(base, rest)
-  path = os.path.expanduser(path)
-  path = os.path.abspath(path)
-  path = os.path.realpath(path)
-  return path
+    while rest.startswith(path.sep):
+      rest = rest[len(path.sep):]
+    somepath = path.join(base, rest)
+  return path.realpath(path.abspath(path.expanduser(somepath)))
 
 
 def check_dir_exists(dirpath):
@@ -93,7 +100,7 @@ def generate_zip_with_7za(root_dir, file_paths, archive_path):
 
 def generate_zip_with_7za_from_filepairs(pairs, archive_path):
   """Pairs are source/destination path pairs. The source will be put into the
-  zip with name destination.  The destination must be a suffix of the source."""
+  zip with name destination."""
 
   staging_dir = '/tmp/stage_7za'
   if os.path.exists(staging_dir):

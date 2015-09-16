@@ -75,7 +75,7 @@ LIKELY_SUBTAGS = {
     'dtp': ('dtp', 'Latn', 'MY'),  # Central Dusun
     'egl': ('egl', 'Latn', 'IT'),  # Emilian
     'egy': ('egy', 'Egyp', 'ZZ'),  # Ancient Egyptian
-    'eka': ('eka', 'Egyp', 'NG'),  # Ekajuk
+    'eka': ('eka', 'Latn', 'NG'),  # Ekajuk
     'eky': ('eky', 'Kali', 'TH'),  # Eastern Kayah
     'esu': ('esu', 'Latn', 'US'),  # Central Yupik
     'ett': ('ett', 'Ital', 'IT'),  # Etruscan
@@ -160,7 +160,7 @@ LIKELY_SUBTAGS = {
     'myx': ('myx', 'Latn', 'UG'),  # Masaaba
     'myz': ('myz', 'Mand', 'ZZ'),  # Classical Mandaic
     'mzn': ('mzn', 'Arab', 'IR'),  # Mazanderani
-    'nan': ('nan', 'Hans', 'CN'),  # Min Nan Chinese
+    'nan': ('nan', 'Latn', 'CN'),  # Min Nan Chinese
     'ndc': ('ndc', 'Latn', 'MZ'),  # Ndau
     'ngl': ('ngl', 'Latn', 'MZ'),  # Lomwe
     'nia': ('nia', 'Latn', 'ID'),  # Nias
@@ -171,6 +171,7 @@ LIKELY_SUBTAGS = {
     'nov': ('nov', 'Latn', '001'),  # Novial
     'nyo': ('nyo', 'Latn', 'UG'),  # Nyoro
     'nzi': ('nzi', 'Latn', 'GH'),  # Nzima
+    'ohu': ('ohu', 'Hung', 'HR'),  # Old Hungarian
     'oj': ('oj', 'Latn', 'CA'),  # Ojibwa
     'osa': ('osa', 'Latn', 'US'),  # Osage
     'osc': ('osc', 'Ital', 'ZZ'),  # Oscan
@@ -205,12 +206,24 @@ LIKELY_SUBTAGS = {
     'xnr': ('xnr', 'Deva', 'IN'),  # Kangri
     'xum': ('xum', 'Ital', 'ZZ'),  # Umbrian (dlf)
     'zdj': ('zdj', 'Arab', 'KM'),  # Ngazidja Comorian
+    'und-Mult': ('skr', 'Mult', 'ZZ'), # ancient writing system for Saraiki, Arabic now used
+    'und-Hung': ('ohu', 'Hung', 'ZZ'), # Old Hungarian, Carpathian basin
+    'und-Hluw': ('hlu', 'Hluw', 'ZZ'), # Hieroglyphic Luwian
+    'und-Ahom': ('aho', 'Ahom', 'ZZ'), # Ahom
 }
 
+
+ENGLISH_SCRIPT_NAMES = {
+    'Ahom': u'Ahom',
+    'Cans': u'Canadian Aboriginal', # shorten name for display purposes, match Noto font name
+    'Hatr': u'Hatran',
+    'Mult': u'Multani',
+}
 
 ENGLISH_LANGUAGE_NAMES = {
     'abr': u'Abron',
     'abq': u'Abaza',
+    'aho': u'Ahom',
     'aii': u'Assyrian Neo-Aramaic',
     'akz': u'Alabama',
     'amo': u'Amo',
@@ -222,6 +235,7 @@ ENGLISH_LANGUAGE_NAMES = {
     'bfy': u'Bagheli',
     'bgc': u'Haryanvi',
     'bgx': u'Balkan Gagauz Turkish',
+    'bh': u'Bihari',
     'bhb': u'Bhili',
     'bhi': u'Bhilali',
     'bhk': u'Albay Bikol',
@@ -273,6 +287,7 @@ ENGLISH_LANGUAGE_NAMES = {
     'gub': u'Guajajára',
     'gvr': u'Western Gurung',
     'haz': u'Hazaragi',
+    'hlu': u'Hieroglyphic Luwian',
     'hmd': u'A-Hmao',
     'hnd': u'Southern Hindko',
     'hne': u'Chhattisgarhi',
@@ -328,6 +343,7 @@ ENGLISH_LANGUAGE_NAMES = {
     'moe': u'Montagnais',
     'mrd': u'Western Magar',
     'mro': u'Mru',
+    'mru': u'Cameroon Mono',
     'mtr': u'Mewari',
     'mvy': u'Indus Kohistani',
     'mwk': u'Kita Maninkakan',
@@ -344,10 +360,13 @@ ENGLISH_LANGUAGE_NAMES = {
     'noe': u'Nimadi',
     'nsk': u'Naskapi',
     'nxq': u'Naxi',
+    'ohu': u'Old Hungarian',
     'osc': u'Oscan',
     'otk': u'Old Turkish',
     'pcm': u'Nigerian Pidgin',
+    'pka': u'Ardhamāgadhī Prākrit',
     'pko': u'Pökoot',
+    'pra': u'Prakrit', # language family name
     'prd': u'Parsi-Dari',
     'prs': u'Dari',
     'puu': u'Punu',
@@ -420,6 +439,22 @@ ENGLISH_LANGUAGE_NAMES = {
     'zmi': u'Negeri Sembilan Malay',
 }
 
+# Supplement mapping of languages to scripts
+LANG_TO_SCRIPTS = {
+    'hak': ['Hans', 'Hant', 'Latn'],
+    'nan': ['Hans', 'Hant', 'Latn'],
+    'yue': ['Hant'],
+}
+
+# Supplement mapping of regions to lang_scripts
+REGION_TO_LANG_SCRIPTS = {
+    'CN': ['nan-Latn', 'yue-Hans', 'yue-Hant'],
+    'HK': ['hak-Hant', 'hak-Hans', 'hak-Latn'],
+    'MN': ['mn-Mong'],
+    'MY': ['zh-Hans'],
+    'TW': ['nan-Hant', 'nan-Latn'],
+}
+
 PARENT_LOCALES = {
     'ky-Latn': 'root',
     'sd-Deva': 'root',
@@ -450,10 +485,17 @@ EXEMPLARS = {
   'und-Mtei': r'[\uabc0-\uabe2]',
   'und-Orkh': r'[\U010c00-\U010c48]',
   'und-Phag': r'[\ua840-\ua877]',
+  'und-Qaae': r'[\u2049\u231a\u231b\u2600\u260e\u2614\u2615\u26fa\u2708\u2709'
+              r'\u270f\u3297\U01f004\U01f170\U01f193\U01f197\U01f30d\U01f318\U01f332\U01f334'
+              r'\U01f335\U01f344\U01f346\U01f352\U01f381\U01f393\U01f3a7\U01f3b8\U01f3e1\U01f402'
+              r'\U01f40a\U01f418\U01f419\U01f41b\U01f41f\U01f422\U01f424\U01f427\U01f44c\U01f44d'
+              r'\U01f453\U01f463\U01f4bb\U01f4ce\U01f4d3\U01f4d6\U01f4e1\U01f4fb\U01f511\U01f525'
+              r'\U01f565\U01F63a\U01f680\U01f681\U01f683\U01f686\U01f68c\U01f6a2\U01f6a3\U01f6b4]',
   'und-Saur': r'[\ua882-\ua8b3]',
   'und-Sund': r'[\u1b83-\u1ba0]',
   'und-Sylo': r'[\ua800-\ua82b]',
   'und-Tavt': r'[\uaa80-\uaaaf \uaadb-\uaadf]',
+  'und-Tglg': r'[\u1700-\u170c \u170e-\u1711]',
   'und-Ugar': r'[\U010380-\U01039d \U01039f]',
   'und-Xsux': r'[\U012000-\U01202f]',
   'und-Zsym': r'[\u20ac\u20b9\u2103\u2109\u2115\u2116\u211a\u211e\u2122'

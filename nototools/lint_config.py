@@ -86,7 +86,7 @@ value_list: -- numbers or ranges separated by whitespace, no space around hyphen
   (<number> | <number>'-'<number>)+
 """
 
-def parse_int_ranges(range_string, is_hex, sep=' '):
+def parse_int_ranges(range_string, is_hex=True, sep=' '):
   """Returns a set of ints from a string of numbers or ranges separated by sep.
   A range is two values separated by hyphen with no intervening separator."""
   result = set()
@@ -113,9 +113,12 @@ def parse_int_ranges(range_string, is_hex, sep=' '):
   return result
 
 
-def write_int_ranges(int_values, in_hex, sep=' '):
+def write_int_ranges(int_values, in_hex=True, sep=' '):
   """From a set or list of ints, generate a string representation that can
   be parsed by parse_int_ranges to return the original values (not order_preserving)."""
+
+  if not int_values:
+    return ''
 
   num_list = []
 
@@ -248,7 +251,7 @@ class FontCondition(object):
       value = re.compile(value)
     self.__dict__[condition_name] = (fn, value)
 
-  line_re = re.compile(r'([^ \t]+)\s+([^ \t]+)(.*)?')
+  line_re = re.compile(r'([^ \t]+)\s+([^ \t]+)(.*)')
   def modify_line(self, line):
     line = line.strip()
     m = self.line_re.match(line)
@@ -285,8 +288,28 @@ class FontCondition(object):
     return True
 
   def __repr__(self):
-    output = ['%s: %s' % (k,v) for k,v in self.__dict__.iteritems() if v]
-    return 'FontCondition(%s)' % ', '.join(output)
+    def value_str(value):
+      if isinstance(value, basestring):
+        cond_name = 'is'
+        cond_value = value
+      else:
+        fn = value[0]
+        val = value[1]
+        cond_name = None
+        for fn_text, fn_obj in FontCondition.fn_map.iteritems():
+          if fn == fn_obj:
+            cond_name = fn_text
+            break
+        if cond_name == 'like':
+          cond_value = val.pattern
+        else:
+          if not cond_name:
+            cond_name = str(fn)
+          cond_value = str(val)
+      return '%s %s' % (cond_name, cond_value)
+
+    output = ['\n  %s: %s' % (k,value_str(v)) for k,v in self.__dict__.iteritems() if v]
+    return 'condition:%s' % ''.join(output)
 
 
 class TestSpec(object):
@@ -313,6 +336,7 @@ class TestSpec(object):
     designer_url
     license
     license_url
+    unused -- checks for unused entries in name table
   cmap -- cmap table tests
     tables
       missing
@@ -372,8 +396,10 @@ class TestSpec(object):
   complex -- gpos and gsub tests
     gpos
       missing
+      ui_name_id -- FeatureParamsStylisticSet.UINameID not in name table
     gsub
       missing
+      ui_name_id -- FeatureParamsStylisticSet.UINameID not in name table
   bidi -- tests bidi pairs, properties
     rtlm_non_mirrored -- rtlm GSUB feature applied to private-use or non-mirrored character
     ompl_rtlm -- rtlm GSUB feature applied to ompl char
@@ -387,9 +413,10 @@ class TestSpec(object):
     digits -- checks that ASCII digits have same advance as digit zero
     comma_period -- checks that comma and period have same advance
     whitespace -- checks for expected advance relationships in whitespace
+    spacing_marks -- checks that particular spacing marks have non-zero advances
   stem -- stem widths
-    left_joiner -- non-zero lsb
-    right_joiner -- rsb not -70
+    left_joining -- non-zero lsb
+    right_joining -- rsb not -70
   reachable except|only gid
   """
 
@@ -517,7 +544,8 @@ class TestSpec(object):
   def enable_tag(self, tag_seg):
     m = self.tag_rx.match(tag_seg)
     if not m:
-      raise ValueError('TestSpec could not parse ' + tag_spec)
+      raise ValueError('TestSpec could not parse:\n  "%s"\n'
+                       'expecting:\n  "<tag_name> except|only cp|gid <value>+"'% tag_seg)
     self.enable(m.group(1), relation=m.group(2), arg_type=m.group(3), arg=m.group(4))
 
   def disable(self, tag):
@@ -563,10 +591,10 @@ class TestSpec(object):
     output = []
     if enable_list:
       output.append('enable:')
-      output.extend(sorted(enable_list))
+      output.extend('  %s' % item for item in sorted(enable_list))
     if disable_list:
       output.append('disable:')
-      output.extend(sorted(disable_list))
+      output.extend('  %s' % item for item in sorted(disable_list))
     return '\n'.join(output)
 
 
@@ -648,7 +676,7 @@ class LintSpec(object):
     return LintTests(frozenset(result), options)
 
   def __repr__(self):
-    return 'spec:\n' + '\nspec:\n'.join(str(spec) for spec in self.specs)
+    return '--- spec ---\n' + '\n--- spec ---\n'.join('%s\n%s' % spec for spec in self.specs)
 
 
 def parse_spec(spec, lint_spec=None):
@@ -708,9 +736,10 @@ def main():
   parser.add_argument('--comments', help='list tags with comments when present', action='store_true')
   parser.add_argument('--filters', help='list tags with filters when present', action='store_true')
   parser.add_argument('--spec', help='prints the syntax', action='store_true')
+  parser.add_argument('--parsefile', help='prints the parsed spec', metavar='spec')
   args = parser.parse_args()
 
-  if not (args.tags or args.comments or args.filters or args.spec):
+  if not (args.tags or args.comments or args.filters or args.spec or args.parsefile):
     print 'nothing to do.'
     return
 
@@ -732,6 +761,10 @@ def main():
         print '  ' + filter
       if comment:
         print '  -- ' + comment
+
+  if args.parsefile:
+    print parse_spec_file(args.parsefile)
+
 
 if __name__ == '__main__':
     main()
