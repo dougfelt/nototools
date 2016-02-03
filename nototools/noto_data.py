@@ -166,6 +166,7 @@ def char_range(start, end):
 
 COPTIC_EPACT = char_range(0x102E0, 0x102FB)
 ARABIC_MATH = char_range(0x1EE00, 0x1EEF1)
+ASCII_DIGITS = char_range(0x0030, 0x0039)
 
 P3_EXTRA_CHARACTERS_NEEDED = {
     # nothing additional outside block
@@ -173,7 +174,7 @@ P3_EXTRA_CHARACTERS_NEEDED = {
 
     # According to Roozbeh (and existing fonts) the following punctuation and
     # digits are used with and interact with Arabic characters.
-    'Arab': char_range(0x0030, 0x0039) + [
+    'Arab': ASCII_DIGITS + [
         # exclamation mark, comma, full stop, colon, NBS, guillimets
         0x0021, 0x002c, 0x002e, 0x003a, 0x00a0, 0x00ab, 0x00bb,
         0x06dd,           # Arabic end of Ayah
@@ -182,7 +183,7 @@ P3_EXTRA_CHARACTERS_NEEDED = {
         0xfd3e, 0xfd3f],  # ornate left and right paren (in Noto Naskh)
 
     # like Arabic, but Sindi is not written in Nastaliq so omitted.
-    'Aran': char_range(0x0030, 0x0039) + [
+    'Aran': ASCII_DIGITS + [
         # exclamation mark, comma, full stop, colon, NBS, guillimets
         0x0021, 0x002c, 0x002e, 0x003a, 0x00a0, 0x00ab, 0x00bb,
         0x06dd,           # Arabic end of Ayah
@@ -250,7 +251,7 @@ P3_EXTRA_CHARACTERS_NEEDED = {
     #   (plus sign to here all from keyboard doc)
     # exclamation point, left paren, right paren, ellipsis (web sites use them)
     # hyphen (used in hyphenated names in Amharaic, see wikipedia page)
-    'Ethi': char_range(0x0030, 0x0039) + [
+    'Ethi': ASCII_DIGITS + [
         0x0308,
         0x002B, 0x002C, 0x002D, 0x002E, 0x002F,
         0x003D, 0x003F, 0x2018, 0x2019, 0x201C, 0x201D,
@@ -267,7 +268,7 @@ P3_EXTRA_CHARACTERS_NEEDED = {
     # see core standard:
     # middle dot, word separator middle dot, archaic punctuation (includes two
     # dot punctuation at 205A)
-    'Geor': char_range(0x0030, 0x0039) + [
+    'Geor': ASCII_DIGITS + [
         0x0021, 0x0025, 0x0028, 0x0029, 0x002C, 0x002D,
         0x002E, 0x003A, 0x003B, 0x00A0,
         0x2014, 0x201C, 0x201E, 0x2026,
