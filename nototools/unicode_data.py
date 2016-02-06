@@ -44,6 +44,7 @@ _bidi_mirroring_characters = set()
 _script_data = {}
 _script_extensions_data = {}
 _block_data = {}
+_block_sets = {}
 _age_data = {}
 _bidi_mirroring_glyph_data = {}
 _core_properties_data = {}
@@ -191,6 +192,18 @@ def block(char):
         return _block_data[char]
     except KeyError:
         return "No_Block"
+
+
+def block_chars(block):
+    """Returns a frozen set of the cps in the named block."""
+    load_data()
+    return _block_sets[block]
+
+
+def block_names():
+    """Returns the names of the blocks."""
+    load_data()
+    return frozenset(_block_sets.keys())
 
 
 def age(char):
@@ -494,9 +507,13 @@ def _load_blocks_txt():
     with open_unicode_data_file("Blocks.txt") as blocks_txt:
         block_ranges = _parse_code_ranges(blocks_txt.read())
 
+    block_sets = collections.defaultdict(set)
     for first, last, block_name in block_ranges:
+        block_sets[block_name] |= frozenset(xrange(first, last + 1))
         for character_code in xrange(first, last+1):
             _block_data[character_code] = block_name
+    for name, cps in block_sets.iteritems():
+      _block_sets[name] = frozenset(cps)
 
 
 def _load_derived_age_txt():
