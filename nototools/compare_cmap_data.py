@@ -72,6 +72,28 @@ def compare_cmap_data_files(base_file, target_file, scripts, ranges,
   return compare, base_cmap_data, target_cmap_data
 
 
+def _print_detailed(cps):
+  last_block = None
+  for cp in sorted(cps):
+    block = unicode_data.block(cp)
+    if block != last_block:
+      print '    %s' % block
+      last_block = block
+    script = unicode_data.script(cp)
+    extensions = unicode_data.script_extensions(cp) - set([script])
+    if extensions:
+      extensions = ' (%s)' % ','.join(sorted(extensions))
+    else:
+      extensions = ''
+    print '    %6s %4s %2s %3s %s%s' % (
+        '%04x' % cp,
+        script,
+        unicode_data.category(cp),
+        unicode_data.age(cp),
+        unicode_data.name(cp, ''),
+        extensions)
+
+
 def report_compare(compare_result, detailed=True):
   compare, base_cmap_data, target_cmap_data = compare_result
   base_map = cmap_data.create_map_from_table(base_cmap_data.table)
@@ -91,16 +113,12 @@ def report_compare(compare_result, detailed=True):
         print '  added (%d): %s' % (
             len(added), lint_config.write_int_ranges(added))
         if detailed:
-          for cp in sorted(added):
-            print '    %6s %s' % (
-                '%04x' % cp, unicode_data.name(cp, ''))
+          _print_detailed(added)
       if removed:
         print '  removed (%d): %s' % (
             len(removed), lint_config.write_int_ranges(removed))
         if detailed:
-          for cp in sorted(removed):
-            print '    %6s %s' % (
-                '%04x' % cp, unicode_data.name(cp, ''))
+          _print_detailed(removed)
 
 
 def main():
