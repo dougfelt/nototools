@@ -37,6 +37,10 @@ _PHASE_TWO_SCRIPTS = """
   Zsym
 """
 
+_CUSTOM_SCRIPTS = set("""
+  Jpan Kore LGC Hans Hant
+  """.split())
+
 def _code_range_to_set(code_range):
   """Converts a code range output by _parse_code_ranges to a set."""
   characters = set()
@@ -45,10 +49,9 @@ def _code_range_to_set(code_range):
   return characters
 
 
-def _symbol_set():
+def _symbol_set(phase):
   """Returns set of characters that should be supported in Noto Symbols."""
-  ranges = unicode_data._parse_code_ranges(noto_data.SYMBOL_RANGES_TXT)
-  return _code_range_to_set(ranges)
+  return noto_data.get_extra_characters_needed('Zsye', phase)
 
 
 def _cjk_set():
@@ -62,6 +65,12 @@ def _emoji_pua_set():
   return lint_config.parse_int_ranges('FE4E5-FE4EE FE82C FE82E-FE837')
 
 
+# nul, CR, space required in all fonts
+_REQUIRED_CHARS = frozenset([0, 0xd, 0x20])
+
+# add zwnj, zwj, dotted circle to complex script fonts
+_COMPLEX_REQUIRED_CHARS = frozenset([0x200c, 0x200d, 0x25cc])
+
 def _get_script_required(
     script, unicode_version, noto_phase, unicode_only=False, verbose=False):
   needed_chars = set()
@@ -71,28 +80,26 @@ def _get_script_required(
       needed_chars = _emoji_pua_set()  # legacy PUA for android emoji
   elif script == 'Zsym':  # Symbols
     if not unicode_only:
-      needed_chars = _symbol_set()
+      needed_chars = _symbol_set(noto_phase)
   elif script == 'LGC':
     needed_chars = (
         unicode_data.defined_characters(scr='Latn', version=unicode_version)
         | unicode_data.defined_characters(scr='Grek', version=unicode_version)
         | unicode_data.defined_characters(scr='Cyrl', version=unicode_version))
     if not unicode_only:
-      needed_chars -= _symbol_set()
+      needed_chars -= _symbol_set(noto_phase)
       needed_chars -= _cjk_set()
   elif script == "Aran":
     if unicode_only:
       needed_chars = unicode_data.defined_characters(
           scr='Arab', version=unicode_version)
-    else:
-      needed_chars = noto_data.urdu_set()
   elif script in ['Hans', 'Hant', 'Jpan', 'Kore']:
       needed_chars = _cjk_set()
   else:
     needed_chars = unicode_data.defined_characters(
         scr=script, version=unicode_version)
     if not unicode_only:
-      needed_chars -= _symbol_set()
+      needed_chars -= _symbol_set(noto_phase)
 
   if not unicode_only:
     needed_chars |= noto_data.get_extra_characters_needed(script, noto_phase)
@@ -103,7 +110,10 @@ def _get_script_required(
     needed_chars -= noto_data.get_characters_not_needed(script, noto_phase)
 
   if not unicode_only:
-    needed_chars |= set([0, 0xd, 0x20])
+    needed_chars |= _REQUIRED_CHARS
+    needed_chars |= noto_data.get_script_to_punct(script, noto_phase)
+    if noto_phase > 2 and noto_data.is_complex_script(script):
+      needed_chars |= _COMPLEX_REQUIRED_CHARS
 
   if verbose:
     print >> sys.stderr, script,
@@ -172,7 +182,7 @@ def main():
   parser = argparse.ArgumentParser()
   parser.add_argument(
       '--scripts', help='list of pseudo-script codes, empty for all '
-      'phase 2 scripts', metavar='code', nargs='*')
+      'scripts for phase', metavar='code', nargs='*')
   parser.add_argument(
       '--unicode_version', help='version of unicode to use (default %s)' %
       DEFAULT_UNICODE_VERSION, metavar='version', type=float,
@@ -192,7 +202,10 @@ def main():
   args = parser.parse_args()
 
   if not args.scripts:
-    scripts = set(s.strip() for s in _PHASE_TWO_SCRIPTS.split(','))
+    if args.phase < 3:
+      scripts = set(s.strip() for s in _PHASE_TWO_SCRIPTS.split(','))
+    else:
+      scripts = unicode_data.all_scripts() | _CUSTOM_SCRIPTS
   else:
     scripts = _check_scripts(args.scripts)
 

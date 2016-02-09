@@ -257,7 +257,8 @@ def parse_int_ranges(range_string, is_hex=True, sep=None):
       lo = int(val_list[0], base)
       hi = int(val_list[1], base)
       if lo >= hi:
-        raise ValueError('val range must have high > low')
+        raise ValueError('val range must have high > low (%s in "%s")' % (
+            val, range_string))
       result.update(range(lo, hi + 1))
       count += hi - lo + 1
     else:
