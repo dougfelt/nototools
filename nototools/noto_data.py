@@ -279,14 +279,16 @@ P3_EXTRA_CHARACTERS_NEEDED = {
 
     # According to Roozbeh (and existing fonts) the following punctuation and
     # digits are used with and interact with Arabic characters.
-    'Arab': ASCII_DIGITS + [
-        # exclamation mark, comma, full stop, colon, NBS, guillimets
-        0x0021, 0x002c, 0x002e, 0x003a, 0x00a0, 0x00ab, 0x00bb,
-        0x061c,           # Arabic letter mark
-        0x06dd,           # Arabic end of Ayah
-        0x2010, 0x2011,   # Hyphen and non-breaking hyphen need different shapes
-        0x204F, 0x2E41,   # For Sindhi
-        0xfd3e, 0xfd3f],  # ornate left and right paren (in Noto Naskh)
+    'Arab': tool_utils.parse_int_ranges(
+        # exclamation mark, comma, full stop, digits, colon, NBS, guillimets
+        """0021 002C 002E 0030-0039 003A 00A0 00AB 00BB
+        0605  # number mark above
+        061C  # letter mark
+        06DD  # end of Ayah
+        08B6-08E2  # arabic extended-A
+        2010-2011  # hyphen, non-breaking hyphen need different shapes than LGC
+        204F 2E41  # for Sindhi
+        FD3E-FD3F  # ornate left/right paren (in Noto Naskh)"""),
 
     # like Arabic, but Sindi is not written in Nastaliq so omitted.
     'Aran': (
@@ -418,7 +420,8 @@ P3_EXTRA_CHARACTERS_NEEDED = {
     # http://www.unicode.org/L2/L2015/15243-kannada-frac.pdf
     # should be horizontal, not slanted
     'Knda': tool_utils.parse_int_ranges(
-        'A830-A835') | EXTRA_INDIC,
+        """0C80 # spacing candrabindu
+        A830-A835""") | EXTRA_INDIC,
 
     # common and modifiers from a bunch of blocks
     'LGC': tool_utils.parse_int_ranges(
@@ -440,6 +443,7 @@ P3_EXTRA_CHARACTERS_NEEDED = {
         2113  # script small l, traditional for 'liter' though not recommended
         2116-2117  # Numero sign, sound recording copyright
         2120-2122 213B  # service mark, telephone sign, trade mark, fax sign
+        218A-218B  # number forms: used in a historical base-12 system, not math
         2190-2195  # arrows: only left up right down L-R, U-D
         25A0-25A1  # geometric shapes: only black and white square
         25CA-25CC  # geometric shapes: losenge, white circle, dotted circle
@@ -447,7 +451,7 @@ P3_EXTRA_CHARACTERS_NEEDED = {
         25D9 25E6  # geometric shapes: inverse white circle, white bullet
         # 2E00-2E42  supplemental punctuation moved to symbols
         A717-A71F  # modifier tone letters: used with LGC
-        A720-A721 A788-A78A  # latin extended-d
+        A720-A721 A788-A78A A7AE  # latin extended-d
         AB5B  # latin extended-e
         FB00-FB06  # alphabetic presentation forms
         FE20-FE2F  # combining half marks
@@ -456,6 +460,9 @@ P3_EXTRA_CHARACTERS_NEEDED = {
 
 
     'Lisu': [0x02BC, 0x02CD],  # From Core Specification
+
+    'Mlym': tool_utils.parse_int_ranges(
+        '0D4f-0D56 0D58-0D5E 0D76-0D78'), # not sure how these are missing
 
     # Meriotic Cursive
     # see http://www.unicode.org/L2/L2009/09188r-n3646-meroitic.pdf
@@ -469,6 +476,12 @@ P3_EXTRA_CHARACTERS_NEEDED = {
     'Mult': char_range(0x0A66, 0x0A6F),
 
     'Orya': EXTRA_INDIC,
+
+    # Runic
+    'Runr': tool_utils.parse_int_ranges('16EB-16ED'),
+
+    # Saurashtra
+    'Saur': [0xA8C5],  # candrabindu
 
     # Sharada
     # see http://www.unicode.org/L2/L2009/09074-sharada.pdf
@@ -517,7 +530,7 @@ P3_EXTRA_CHARACTERS_NEEDED = {
         """
         00B2-00B3 00B9 00BC-00BE  # superscript 2, 3, 1, 1/4, 1/2, 3/4
         2070-208E  # superscripts and subscripts, digits plus i and n
-        2150-215E 2189  # number forms: vulgar fractions
+        2150-215F 2189  # number forms: vulgar fractions
         2200-22FF  # mathematical operators
         27C0-27EF  # miscellaneous mathematical symbols-A
         2980-29FF  # miscellaneous mathematical symbols-B
@@ -671,6 +684,7 @@ def get_extra_characters_needed(script, phase):
           return set(EXTRA_CHARACTERS_NEEDED[script])
       if phase == 3:
           return set(P3_EXTRA_CHARACTERS_NEEDED[script])
+      raise ValueError("unknown phase: %s" % phase)
   except KeyError:
       pass
   return set()
@@ -682,6 +696,7 @@ def get_characters_not_needed(script, phase):
         return set(CHARACTERS_NOT_NEEDED[script])
       if phase == 3:
           return set(P3_CHARACTERS_NOT_NEEDED[script])
+      raise ValueError("unknown phase: %s" % phase)
   except KeyError:
       pass
   return set()
@@ -695,6 +710,7 @@ def get_script_to_punct(script, phase):
     except KeyError:
         pass
     return set()
+
 
 def is_complex_script(script):
     return script in HB_COMPLEX_SCRIPTS

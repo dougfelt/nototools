@@ -38,7 +38,9 @@ _PHASE_TWO_SCRIPTS = """
 """
 
 _CUSTOM_SCRIPTS = set("""
-  Jpan Kore LGC Hans Hant
+  LGC
+  Jpan Kore Hans Hant
+  Aran Piqd Zmth Zsye Zsym
   """.split())
 
 def _code_range_to_set(code_range):
@@ -51,8 +53,7 @@ def _code_range_to_set(code_range):
 
 def _symbol_set(phase):
   """Returns set of characters that should be supported in Noto Symbols."""
-  return noto_data.get_extra_characters_needed('Zsye', phase)
-
+  return noto_data.get_extra_characters_needed('Zsym', phase)
 
 def _cjk_set():
   """Returns set of characters that will be provided in CJK fonts."""
