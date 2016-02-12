@@ -19,6 +19,7 @@
 """
 
 from nototools import tool_utils
+from nototools import unicode_data
 
 __author__ = "roozbeh@google.com (Roozbeh Pournader)"
 
@@ -62,49 +63,65 @@ FF00..FFEF; Halfwidth and Fullwidth Forms
 2F00..2FDF; Kangxi Radicals
 """
 
-SYMBOL_RANGES_TXT = """
-20A0..20CF; Currency Symbols
-20D0..20FF; Combining Diacritical Marks for Symbols
-2100..214F; Letterlike Symbols
-2190..21FF; Arrows
-2200..22FF; Mathematical Operators
-2300..23FF; Miscellaneous Technical
-2400..243F; Control Pictures
-2440..245F; Optical Character Recognition
-2460..24FF; Enclosed Alphanumerics
-2500..257F; Box Drawing
-2580..259F; Block Elements
-25A0..25FF; Geometric Shapes
-2600..26FF; Miscellaneous Symbols
-2700..27BF; Dingbats
-27C0..27EF; Miscellaneous Mathematical Symbols-A
-27F0..27FF; Supplemental Arrows-A
-2800..28FF; Braille Patterns
-2900..297F; Supplemental Arrows-B
-2980..29FF; Miscellaneous Mathematical Symbols-B
-2A00..2AFF; Supplemental Mathematical Operators
-2B00..2BFF; Miscellaneous Symbols and Arrows
-2E00..2E7F; Supplemental Punctuation
-4DC0..4DFF; Yijing Hexagram Symbols
-A700..A71F; Modifier Tone Letters
-FFF0..FFFF; Specials
-10100..1013F; Aegean Numbers
-10140..1018F; Ancient Greek Numbers
-10190..101CF; Ancient Symbols
-101D0..101FF; Phaistos Disc
-1D000..1D0FF; Byzantine Musical Symbols
-1D100..1D1FF; Musical Symbols
-1D200..1D24F; Ancient Greek Musical Notation
-1D300..1D35F; Tai Xuan Jing Symbols
-1D360..1D37F; Counting Rod Numerals
-1D400..1D7FF; Mathematical Alphanumeric Symbols
-1F000..1F02F; Mahjong Tiles
-1F030..1F09F; Domino Tiles
-1F0A0..1F0FF; Playing Cards
-1F100..1F1FF; Enclosed Alphanumeric Supplement
-1F200..1F2FF; Enclosed Ideographic Supplement
-1F700..1F77F; Alchemical Symbols
-"""
+SYMBOL_BASE = tool_utils.parse_int_ranges("""
+      20A0-20CF  # Currency Symbols
+      20D0-20FF  # Combining Diacritical Marks for Symbols
+      2100-214F  # Letterlike Symbols
+      2160-2188  # Roman Numerals
+      2190-21FF  # Arrows
+      2300-23FF  # Miscellaneous Technical - in xits
+      2400-243F  # Control Pictures
+      2440-245F  # Optical Character Recognition
+      2460-24FF  # Enclosed Alphanumerics
+      2500-257F  # Box Drawing
+      2580-259F  # Block Elements
+      25A0-25FF  # Geometric Shapes
+      2600-26FF  # Miscellaneous Symbols
+      2700-27BF  # Dingbats
+      27F0-27FF  # Supplemental Arrows-A
+      2800-28FF  # Braille Patterns
+      2900-297F  # Supplemental Arrows-B
+      2B00-2BFF  # Miscellaneous Symbols and Arrows
+      2E00-2E7F  # Supplemental Punctuation
+      4DC0-4DFF  # Yijing Hexagram Symbols
+      A700-A71F  # Modifier Tone Letters
+      FFF0-FFFF  # Specials
+    10100-1013F  # Aegean Numbers
+    10140-1018F  # Ancient Greek Numbers
+    10190-101CF  # Ancient Symbols
+    101D0-101FF  # Phaistos Disc
+    1D000-1D0FF  # Byzantine Musical Symbols
+    1D100-1D1FF  # Musical Symbols
+    1D200-1D24F  # Ancient Greek Musical Notation
+    1D300-1D35F  # Tai Xuan Jing Symbols
+    1D360-1D37F  # Counting Rod Numerals
+    1F000-1F02F  # Mahjong Tiles
+    1F030-1F09F  # Domino Tiles
+    1F0A0-1F0FF  # Playing Cards
+    1F100-1F1FF  # Enclosed Alphanumeric Supplement
+    1F200-1F2FF  # Enclosed Ideographic Supplement
+    1F300-1F5FF  # Miscellaneous Symbols and Pictographs
+    1F600-1F64F  # Emoticons
+    1F650-1F67F  # Ornamental Dingbats
+    1F680-1F6FF  # Transport and Map Symbols
+    1F700-1F77F  # Alchemical Symbols
+    1F780-1F7FF  # Geometric Shapes Extended
+    1F800-1F8FF  # Supplemental Arrows-C
+    1F900-1F9FF  # Supplemental Symbols and Pictographs
+    """)
+
+ARABIC_MATH = tool_utils.parse_int_ranges("""
+    1EE00-1EEFF  # Arabic Mathematical Alphabetic Symbols
+    """)
+
+MATH_BASE = (tool_utils.parse_int_ranges("""
+      2200-22FF  # Mathematical Operators
+      27C0-27EF  # Miscellaneous Mathematical Symbols-A
+      2980-29FF  # Miscellaneous Mathematical Symbols-B
+      2A00-2AFF  # Supplemental Mathematical Operators
+    1D400-1D7FF  # Mathematical Alphanumeric Symbols""") |
+    ARABIC_MATH)
+
 
 UNDER_DEVELOPMENT_RANGES_TXT = """
 0F00..0FFF; Tibetan
@@ -171,9 +188,18 @@ def ascii_letters():
 def char_range(start, end):
     return range(start, end+1)
 
-COPTIC_EPACT = char_range(0x102E0, 0x102FB)
-ARABIC_MATH = char_range(0x1EE00, 0x1EEF1)
-ASCII_DIGITS = char_range(0x0030, 0x0039)
+# stay together, see
+COPTIC_EPACT_AND_RUMI = tool_utils.parse_int_ranges("""
+    102E0-102FB  # EPACT
+    10E60-10E7F  # Rumi""")
+
+# possibly used with both epact/rumi and arabic, keep in both places.
+# combining low line and combining double low line, arabic number sign,
+# arabic number sign, arabic number mark above.
+# was not able to find in the rumi documents an indication of how the
+# underlines used for thousands and millions were represented in unicode.
+NUMBER_MARKS_FOR_COPTIC_EPACT_AND_RUMI = frozenset(
+    [0x0332, 0x0333, 0x0600, 0x0605])
 
 CJK_EXTRA = tool_utils.parse_int_ranges(
     """
@@ -526,61 +552,18 @@ P3_EXTRA_CHARACTERS_NEEDED = {
     'Tibt': tool_utils.parse_int_ranges(
         '007c 0fd5-0fd8'),
 
-    'Zmth': tool_utils.parse_int_ranges(
-        """
+    'Zmth': MATH_BASE | tool_utils.parse_int_ranges("""
         00B2-00B3 00B9 00BC-00BE  # superscript 2, 3, 1, 1/4, 1/2, 3/4
         2070-208E  # superscripts and subscripts, digits plus i and n
-        2150-215F 2189  # number forms: vulgar fractions
-        2200-22FF  # mathematical operators
-        27C0-27EF  # miscellaneous mathematical symbols-A
-        2980-29FF  # miscellaneous mathematical symbols-B
-        2A00-2AFF  # supplemental mathematical operators
-        """
-        ) | set(ARABIC_MATH),
+        2150-215F 2189  # number forms: vulgar fractions"""),
 
-    # Roozbeh says Coptic Epact doesn't belong in the Arabic fonts, though it's
-    # used with Arabic.
-    'Zsym':  tool_utils.parse_int_ranges(
-        """
-        20D0-20F0  # combining diacritical marks for symbols
-        2100-214F  # letterlike symbols
-        2160-2188  # roman numerals
-        2190-21FF  # arrows
-        2300-23FE  # miscellaneous technical
-        2400-2426  # control pictures
-        2440-244A  # OCR
-        2460-24FF  # enclosed alphanumerics
-        2500-257F  # box drawing
-        2580-259F  # block elements
-        25A0-25FF  # geometric shapes
-        2600-26FF  # miscellaneous symbols
-        2700-27BF  # dingbats
-        27F0-27FF  # supplemental arrows-A
-        2800-28FF  # braille patterns
-        2900-297F  # supplemental arrows-B
-        2B00-2BEF  # miscellaneous symbols and arrows
-        2E00-2E44  # supplemental punctuation
-        4DC0-4DFF  # yijing hexagram symbols
-        A700-A71F  # modifier tone letters - these are used both with CJK and
-                   #   latin
-        FFF0-FFFD  # Specials (interlinear annotations, ORC, RC)
-        10100-1013F  # Aegean Numbers
-        10140-1018F  # Ancient Greek Numbers
-        10190-101CF  # Ancient Symbols
-        101D0-101FF  # Phaistos Disc
-        1D000-1D0FF  # Byzantine Musical Symbols
-        1D100-1D1FF  # Musical Symbols
-        1D200-1D24F  # Ancient Greek Musical Notation
-        1D300-1D35F  # Tai Xuan Jing Symbols
-        1D360-1D37F  # Counting Rod Numerals
-        1D400-1D7FF  # Mathematical Alphanumeric Symbols
-        1F000-1F02F  # Mahjong Tiles
-        1F030-1F09F  # Domino Tiles
-        1F0A0-1F0FF  # Playing Cards
-        1F100-1F1FF  # Enclosed Alphanumeric Supplement
-        1F200-1F2FF  # Enclosed Ideographic Supplement
-        1F700-1F77F  # Alchemical Symbols
-        """) | set(COPTIC_EPACT)
+    # Emoji (all, for color)
+    'Zsye': unicode_data.get_emoji(),
+
+    # Symbols, plus coptic epact and rumi, minus presentation default emoji
+    # but duplicates emoji with default text presentation
+    'Zsym': (COPTIC_EPACT_AND_RUMI | NUMBER_MARKS_FOR_COPTIC_EPACT_AND_RUMI
+             | SYMBOL_BASE) - unicode_data.get_presentation_default_emoji(),
 }
 
 P3_LGC_CHARACTERS_NOT_NEEDED = tool_utils.parse_int_ranges(
@@ -590,8 +573,8 @@ P3_LGC_CHARACTERS_NOT_NEEDED = tool_utils.parse_int_ranges(
         """)
 
 P3_CHARACTERS_NOT_NEEDED = {
-    'Arab': char_range(0x10E60, 0x10E7E) + COPTIC_EPACT + ARABIC_MATH,
-    'Copt': COPTIC_EPACT,
+    'Arab': COPTIC_EPACT_AND_RUMI | ARABIC_MATH,
+    'Copt': COPTIC_EPACT_AND_RUMI,
     'Jpan': CJK_NOT_REQUIRED,
     'Kore': CJK_NOT_REQUIRED,
     'Latn': P3_LGC_CHARACTERS_NOT_NEEDED,
