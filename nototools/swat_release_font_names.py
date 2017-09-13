@@ -20,11 +20,13 @@ expects."""
 import argparse
 import logging
 from collections import OrderedDict
+from io import open
 import os
 from os import path
 import re
 
-import glyphsLib
+from glyphsLib.parser import Parser
+from glyphsLib.parser import Writer
 
 from nototools import noto_fonts
 from nototools import noto_names
@@ -33,11 +35,13 @@ from nototools import tool_utils
 logger = logging.getLogger(__name__)
 
 def _get_family_name(data):
-  return data['familyName']
+  # data is escaped, so might be quoted -- unescape it
+  return Parser.unescape_text(data['familyName'])
 
 
 def _get_instance_name(instance_data):
-  return instance_data['name']
+  # data is escaped, so might be quoted -- unescape it
+  return Parser.unescape_text(instance_data['name'])
 
 
 def get_glyphs_files(root):
@@ -81,9 +85,11 @@ def _get_expected_family_name(family_name, instance_name, family_to_name_info):
   filename = ('unhinted/%s-%s.ttf' % (family_name, instance_name)).replace(
       ' ', '')
   noto_font = noto_fonts.get_noto_font(filename)
+  if not noto_font:
+    return None
   name_data = noto_names.name_table_data(noto_font, family_to_name_info, 3)
   if not name_data:
-    raise Exception('oops')
+    raise None
   expected = name_data.original_family
   if len(expected) > 32:
     raise Exception('name "%s" too long (%d)' % (expected, len(expected)))
@@ -93,6 +99,10 @@ def _get_expected_family_name(family_name, instance_name, family_to_name_info):
 def _set_expected_family_name(family_name, instance_data):
   """Return true if we change or add styleMapFamilyName."""
   KEY = 'styleMapFamilyName'
+
+  # data was escaped, so ensure family_name is
+  family_name = Writer.escape_text(family_name)
+
   params = instance_data['customParameters']
   for param in params:
     if param['name'] == KEY:
@@ -111,14 +121,20 @@ def swat_file(glyphs_file, family_to_name_info, dst_file, dry_run=False):
   other than the expected family name."""
 
   with open(glyphs_file, 'rb') as f:
-    data = glyphsLib.load(f)
+    p = Parser(unescape=False)
+    data = p.parse(f.read())
 
   modified = False
   family_name = _get_family_name(data)
+
   for instance_data in data['instances']:
     instance_name = _get_instance_name(instance_data)
     expected_family_name = _get_expected_family_name(
         family_name, instance_name, family_to_name_info)
+    if not expected_family_name:
+      logging.debug('no expected name data for %s %s' % (
+          family_name, instance_name))
+      continue
     if expected_family_name != family_name:
       if _set_expected_family_name(expected_family_name, instance_data):
         if dry_run:
@@ -135,8 +151,8 @@ def swat_file(glyphs_file, family_to_name_info, dst_file, dry_run=False):
       tool_utils.ensure_dir_exists(path.dirname(dst_file))
       logging.info('writing %s' % dst_file)
       with open(dst_file, 'wb') as f:
-        glyphsLib.store(data, f)
-
+        w = Writer(out=f, escape=False)
+        w.write(data)
 
 
 def swat_files(src_root, dst_root, families=None, dry_run=False):
@@ -169,17 +185,19 @@ def rewrite_files(src_root, dst_root, families=None):
   src_base = tool_utils.resolve_path(src_root)
   dst_base = tool_utils.resolve_path(dst_root)
   name_to_glyphs_file = get_glyphs_files(src_root)
+  parser = Parser(unescape=False)
   for name in sorted(name_to_glyphs_file):
     if families and not name in families:
-     continue
+      continue
     glyphs_file = name_to_glyphs_file[name]
     dst_file = path.join(dst_base, glyphs_file[len(src_base) + 1:])
-    with open(glyphs_file, 'rb') as f:
-      data = glyphsLib.load(f)
+    logging.info('loading %s' % dst_file)
+    with open(glyphs_file, 'r', encoding='utf-8') as f:
+      data = parser.parse(f.read())
       tool_utils.ensure_dir_exists(path.dirname(dst_file))
     logging.info('regenerating %s' % dst_file)
-    with open(dst_file, 'wb') as f:
-      glyphsLib.store(data, f)
+    with open(dst_file, 'w', encoding='utf-8') as f:
+      Writer(f, escape=False).write(data)
 
 
 
