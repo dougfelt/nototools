@@ -53,8 +53,7 @@ def get_glyphs_files(root):
   to the file."""
 
   file_to_path = {}
-  resolved_root = tool_utils.resolve_path(root)
-  for p, subdirs, files in os.walk(resolved_root):
+  for p, subdirs, files in os.walk(root):
     for f in files:
       if not f.endswith('.glyphs'):
         continue
@@ -170,7 +169,7 @@ def swat_files(src_root, dst_root, families=None, dry_run=False):
   src_base = tool_utils.resolve_path(src_root)
   dst_base = tool_utils.resolve_path(dst_root)
   family_to_name_info = noto_names.family_to_name_info_for_phase(3)
-  name_to_glyphs_file = get_glyphs_files(src_root)
+  name_to_glyphs_file = get_glyphs_files(src_base)
   for name in sorted(name_to_glyphs_file):
     if families and not name in families:
      continue
@@ -201,7 +200,13 @@ def rewrite_files(src_root, dst_root, families=None):
 
 
 
-def _load_families(families):
+def load_names(names):
+  """Names is a list of strings, any of which might be preceded by '@'. If
+  so it is the name of a file containing a similar list of strings, one per
+  line, with '#' as a comment-to-end-of-line char.  Strip comments and leading
+  and trailing whitespace from each string, and return the set of unique
+  non-empty strings that results."""
+
   result = set()
   def from_file(filename):
     with open(filename, 'r') as f:
@@ -219,8 +224,8 @@ def _load_families(families):
       else:
         result.add(name)
 
-  if families:
-    for name in families:
+  if names:
+    for name in names:
       addname(name)
 
   return sorted(result)
@@ -248,7 +253,7 @@ def main():
       default='warning')
   args = parser.parse_args()
 
-  args.families = _load_families(args.families)
+  args.families = load_names(args.families)
   if not args.dst_dir:
     if not args.dry_run:
       print 'Overwriting files in %s' % args.src_dir
